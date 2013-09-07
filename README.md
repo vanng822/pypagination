@@ -1,0 +1,4 @@
+pypagination
+============
+
+Pagination in CPython
