@@ -212,6 +212,7 @@ SearchPagination_render(PaginationObject *self) {
 	if (result->pageCount < 2) {
 		strcat(html, "</div>");
 		res = PyString_FromStringAndSize(html, strlen(html));
+		free(result->prelink);
 		free(result);
 		free(html);
 		return res;
@@ -220,14 +221,9 @@ SearchPagination_render(PaginationObject *self) {
 	prelink = preparePreLink(result->prelink);
 
 	if (result->previous > 0) {
-		strcat(html, "<a href=\"");
-		strcat(html, prelink);
-		strcat(html, "page=");
-		asprintf(&tmp, "%d", result->previous);
+		asprintf(&tmp, "<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", prelink, result->previous);
 		strcat(html, tmp);
 		free(tmp);
-		strcat(html, "\" class=\"paginator-previous\">");
-		strcat(html, "Previous</a>");
 	}
 
 	if(result->endPage > result->startPage) {
@@ -255,13 +251,9 @@ SearchPagination_render(PaginationObject *self) {
 	}
 
 	if (result->next > 0) {
-		strcat(html, "<a href=\"");
-		strcat(html, prelink);
-		strcat(html, "page=");
-		asprintf(&tmp, "%d", result->next);
+		asprintf(&tmp, "<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", prelink, result->next);
 		strcat(html, tmp);
 		free(tmp);
-		strcat(html, "\" class=\"paginator-next\">Next</a>");
 	}
 	strcat(html, "</div>");
 
