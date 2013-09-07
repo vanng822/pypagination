@@ -54,8 +54,14 @@ Pagination_calc(PaginationObject *self) {
 	oldPageLinks = (self->pageLinks % 2 == 0) ? 1 : 0;
 
 	result = malloc(sizeof(PaginationResult));
+	if (result == NULL) {
+		return NULL;
+	}
 	/* initialize values */
-	asprintf(&result->prelink, "%s", self->prelink);
+	if ((asprintf(&result->prelink, "%s", self->prelink)) == -1) {
+		free(result);
+		return NULL;
+	}
 	result->first = 0;
 	result->fromResult = 0;
 	result->current = (self->current > 0)? self->current: 1;
@@ -171,16 +177,19 @@ SearchPagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 char *
 preparePreLink(char *prelink) {
 	char *prlink = NULL;
-	int len;
+	int len, asprintf_size;
 	len = strlen(prelink);
 	if (strstr(prelink, "?") != NULL) {
 		if (prelink[len-1] != '?' && prelink[len-1] != '&') {
-			asprintf(&prlink, "%s&", prelink);
+			asprintf_size = asprintf(&prlink, "%s&", prelink);
 		} else {
-			asprintf(&prlink, "%s", prelink);
+			asprintf_size = asprintf(&prlink, "%s", prelink);
 		}
 	} else {
-		asprintf(&prlink, "%s?", prelink);
+		asprintf_size = asprintf(&prlink, "%s?", prelink);
+	}
+	if (asprintf_size == -1) {
+		return NULL;
 	}
 	return prlink;
 }
@@ -197,16 +206,20 @@ SearchPagination_render(PaginationObject *self) {
 	char *rangeHTML = NULL;
 	char *prelink = NULL;
 	char *tmp = NULL;
-
+	int asprintf_size;
 	PyObject *res;
 
 	result = Pagination_calc(self);
+	if (result == NULL) {
+		goto on_mem_error;
+	}
 
 	//printf("%d %d %d %s", result->totalResult, result->pageCount, result->current, result->prelink);
 
-	/* find better than strcat */
 	if (result->pageCount < 2) {
-		asprintf(&tmp,"%s%s",startHTML, endHTML);
+		if ((asprintf(&tmp,"%s%s",startHTML, endHTML)) == -1) {
+			goto on_mem_error;
+		}
 		res = PyString_FromString(tmp);
 		free(result->prelink);
 		free(result);
@@ -214,12 +227,17 @@ SearchPagination_render(PaginationObject *self) {
 		return res;
 	}
 
-	prelink = preparePreLink(result->prelink);
+	if ((prelink = preparePreLink(result->prelink)) == NULL) {
+		goto on_mem_error;
+	}
 
 	if (result->previous > 0) {
-		asprintf(&previousHTML, "<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", prelink, result->previous);
+		asprintf_size = asprintf(&previousHTML, "<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", prelink, result->previous);
 	} else {
-		asprintf(&previousHTML, "%s", "");
+		asprintf_size = asprintf(&previousHTML, "%s", "");
+	}
+	if (asprintf_size == -1) {
+		goto on_mem_error;
 	}
 
 	if(result->endPage > result->startPage) {
@@ -228,13 +246,18 @@ SearchPagination_render(PaginationObject *self) {
 									prelink, result->endPage,
 									"paginator-current",
 									" paginator-page-first", result->endPage) * (result->endPage - result->startPage)) + 1);
+		if (rangeHTML == NULL) {
+			goto on_mem_error;
+		}
 		for(int i = result->startPage; i <= result->endPage; i++) {
 			if(i == result->current) {
 				className = strdup("paginator-current");
 			} else {
 				className = strdup("paginator-page");
 			}
-
+			if (className == NULL) {
+				goto on_mem_error;
+			}
 			if (i == result->startPage) {
 				extraClassName = strdup(" paginator-page-first");
 			} else if (i == result->endPage) {
@@ -242,24 +265,39 @@ SearchPagination_render(PaginationObject *self) {
 			} else {
 				extraClassName = strdup("");
 			}
-
-			asprintf(&tmp, "<a href=\"%spage=%d\" class=\"%s%s\">%d</a>", prelink, i, className, extraClassName, i);
+			if (extraClassName == NULL) {
+				free(className);
+				goto on_mem_error;
+			}
+			asprintf_size = asprintf(&tmp, "<a href=\"%spage=%d\" class=\"%s%s\">%d</a>", prelink, i, className, extraClassName, i);
+			if (asprintf_size == -1) {
+				free(className);
+				free(extraClassName);
+				goto on_mem_error;
+			}
 			strcat(rangeHTML, tmp);
 			free(className);
 			free(extraClassName);
 			free(tmp);
 		}
 	} else {
-		asprintf(&rangeHTML,"%s", "");
+		if ((asprintf(&rangeHTML,"%s", "")) == -1) {
+			goto on_mem_error;
+		}
 	}
 
 	if (result->next > 0) {
-		asprintf(&nextHTML, "<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", prelink, result->next);
+		asprintf_size = asprintf(&nextHTML, "<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", prelink, result->next);
 	} else {
-		 asprintf(&nextHTML, "%s", "");
+		asprintf_size = asprintf(&nextHTML, "%s", "");
+	}
+	if (asprintf_size == -1) {
+		goto on_mem_error;
 	}
 
-	asprintf(&tmp, "%s%s%s%s%s", startHTML, previousHTML, rangeHTML, nextHTML, endHTML);
+	if ((asprintf(&tmp, "%s%s%s%s%s", startHTML, previousHTML, rangeHTML, nextHTML, endHTML)) == -1) {
+		goto on_mem_error;
+	}
 
 	res = PyString_FromString(tmp);
 
@@ -272,6 +310,30 @@ SearchPagination_render(PaginationObject *self) {
 	free(tmp);
 
 	return res;
+
+on_mem_error:
+	/* clean up */
+	if (tmp) {
+		free(tmp);
+	}
+	if (prelink) {
+		free(prelink);
+	}
+	if (result) {
+		free(result->prelink);
+		free(result);
+	}
+	if (previousHTML) {
+		free(previousHTML);
+	}
+	if (rangeHTML) {
+		PyMem_Free(rangeHTML);
+	}
+	if (nextHTML) {
+		free(nextHTML);
+	}
+	PyErr_SetString(PyExc_MemoryError, "pagination.SearchPagination_render");
+	return NULL;
 }
 
 /**
