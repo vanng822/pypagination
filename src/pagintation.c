@@ -218,6 +218,7 @@ SearchPagination_render(PaginationObject *self) {
 
 	if (result->pageCount < 2) {
 		if ((asprintf(&tmp,"%s%s",startHTML, endHTML)) == -1) {
+			tmp = NULL;
 			goto on_mem_error;
 		}
 		res = PyString_FromString(tmp);
@@ -237,6 +238,7 @@ SearchPagination_render(PaginationObject *self) {
 		asprintf_size = asprintf(&previousHTML, "%s", "");
 	}
 	if (asprintf_size == -1) {
+		previousHTML = NULL;
 		goto on_mem_error;
 	}
 
@@ -273,6 +275,7 @@ SearchPagination_render(PaginationObject *self) {
 			if (asprintf_size == -1) {
 				free(className);
 				free(extraClassName);
+				tmp = NULL;
 				goto on_mem_error;
 			}
 			strcat(rangeHTML, tmp);
@@ -282,6 +285,7 @@ SearchPagination_render(PaginationObject *self) {
 		}
 	} else {
 		if ((asprintf(&rangeHTML,"%s", "")) == -1) {
+			rangeHTML = NULL;
 			goto on_mem_error;
 		}
 	}
@@ -292,10 +296,12 @@ SearchPagination_render(PaginationObject *self) {
 		asprintf_size = asprintf(&nextHTML, "%s", "");
 	}
 	if (asprintf_size == -1) {
+		nextHTML = NULL;
 		goto on_mem_error;
 	}
 
 	if ((asprintf(&tmp, "%s%s%s%s%s", startHTML, previousHTML, rangeHTML, nextHTML, endHTML)) == -1) {
+		tmp = NULL;
 		goto on_mem_error;
 	}
 
