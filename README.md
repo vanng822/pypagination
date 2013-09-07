@@ -13,4 +13,4 @@ Pagination in CPython
                                     pageLinks = 5,
                                     rowsPerPage = 10,
                                     )
-   print p.render()
+    print p.render()
