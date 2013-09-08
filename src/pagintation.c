@@ -53,7 +53,7 @@ Pagination_calc(PaginationObject *self) {
 
 	oldPageLinks = (self->pageLinks % 2 == 0) ? 1 : 0;
 
-	result = malloc(sizeof(PaginationResult));
+	result = (PaginationResult *) PyMem_Malloc(sizeof(PaginationResult));
 	if (result == NULL) {
 		return NULL;
 	}
@@ -222,8 +222,8 @@ SearchPagination_render(PaginationObject *self) {
 			goto on_mem_error;
 		}
 		res = PyString_FromString(tmp);
-		free(result->prelink);
-		free(result);
+		PyMem_Free(result->prelink);
+		PyMem_Free(result);
 		free(tmp);
 		return res;
 	}
@@ -308,8 +308,8 @@ SearchPagination_render(PaginationObject *self) {
 	res = PyString_FromString(tmp);
 
 	free(prelink);
-	free(result->prelink);
-	free(result);
+	PyMem_Free(result->prelink);
+	PyMem_Free(result);
 	free(previousHTML);
 	free(nextHTML);
 	PyMem_Free(rangeHTML);
@@ -326,8 +326,8 @@ on_mem_error:
 		free(prelink);
 	}
 	if (result) {
-		free(result->prelink);
-		free(result);
+		PyMem_Free(result->prelink);
+		PyMem_Free(result);
 	}
 	if (previousHTML) {
 		free(previousHTML);
