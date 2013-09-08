@@ -280,7 +280,7 @@ Pagination_renderSearch(PaginationObject *self) {
 			Py_DECREF(pageLink);
 		}
 	} else {
-		if ((rangeHTML = PyMem_Malloc(1)) == NULL) {
+		if ((rangeHTML = PyMem_Malloc(2)) == NULL) {
 			goto on_mem_error;
 		}
 		strcpy(rangeHTML, "");
