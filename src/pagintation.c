@@ -239,10 +239,13 @@ Pagination_renderSearch(PaginationObject *self) {
 									result->endPage,
 									"paginator-current",
 									" paginator-page-first",
-									result->endPage) * (result->endPage - result->startPage + 1)));
+									result->endPage) * (result->endPage - result->startPage)) + 1);
 		if (rangeHTML == NULL) {
 			goto on_mem_error;
 		}
+
+		strcpy(rangeHTML, "");
+
 		for(i = result->startPage; i <= result->endPage; i++) {
 			if(i == result->current) {
 				className = PyString_FromString("paginator-current");
