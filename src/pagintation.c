@@ -31,12 +31,12 @@ typedef struct {
 } PaginationResult;
 
 
-static PyTypeObject SearchPaginationtype;
+static PyTypeObject Paginationtype;
 
 static PaginationObject *
-newSearchPaginationObject(void) {
-	//printf("Call newSearchPaginationObject\n");
-	return (PaginationObject *) PyObject_New(PaginationObject, &SearchPaginationtype);
+newPaginationObject(void) {
+	//printf("Call newPaginationObject\n");
+	return (PaginationObject *) PyObject_New(PaginationObject, &Paginationtype);
 }
 
 static void
@@ -79,8 +79,8 @@ Pagination_calc(PaginationObject *self) {
 	if (self->rowsPerPage <= 0) {
 		return result;
 	}
-
-	pageCount = ceil(self->totalResult / self->rowsPerPage);
+	/* force a floating point devision */
+	pageCount = ceil((float) self->totalResult / self->rowsPerPage);
 
 	result->pageCount = pageCount;
 
@@ -96,7 +96,7 @@ Pagination_calc(PaginationObject *self) {
 		result->current = pageCount;
 	}
 
-	half = floor(self->pageLinks / 2);
+	half = floor((float) self->pageLinks / 2);
 
 	startPage = result->current - half;
 
@@ -144,7 +144,7 @@ Pagination_calc(PaginationObject *self) {
  * Create a new Pagination object
  */
 static PyObject *
-SearchPagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
+Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 	PaginationObject *new;
 
 	char *prelink = "?";
@@ -161,7 +161,7 @@ SearchPagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 		return NULL;
 	}
 
-	if ((new = newSearchPaginationObject()) == NULL) {
+	if ((new = newPaginationObject()) == NULL) {
 		return NULL;
 	}
 	new->totalResult = totalResult;
@@ -195,7 +195,7 @@ preparePreLink(char *prelink) {
 }
 
 static PyObject *
-SearchPagination_render(PaginationObject *self) {
+Pagination_renderSearch(PaginationObject *self) {
 	//printf("%d %d %d %d %s", self->totalResult, self->pageLinks, self->rowsPerPage, self->current, self->prelink);
 	PaginationResult * result;
 
@@ -338,20 +338,163 @@ on_mem_error:
 	if (nextHTML) {
 		free(nextHTML);
 	}
-	PyErr_SetString(PyExc_MemoryError, "pagination.SearchPagination_render");
+	PyErr_SetString(PyExc_MemoryError, "pagination.Pagination_renderSearch");
 	return NULL;
+}
+
+
+static PyObject *
+Pagination_renderItem(PaginationObject *self) {
+	//printf("%d %d %d %d %s", self->totalResult, self->pageLinks, self->rowsPerPage, self->current, self->prelink);
+	PaginationResult * result;
+
+	const char *startHTML = "<div class=\"paginator\">";
+	const char *endHTML = "</div>";
+	char *previousHTML = NULL;
+	char *reportHTML = NULL;
+	char *nextHTML = NULL;
+	char *prelink = NULL;
+	char *firstHTML = NULL;
+	char *lastHTML = NULL;
+	char *tmp = NULL;
+	int asprintf_size;
+	PyObject *res;
+
+	result = Pagination_calc(self);
+
+	if (result == NULL) {
+		goto on_mem_error;
+	}
+
+	if ((asprintf(&reportHTML, "<span class=\"paginator-current-report\">Results %d - %d of %d</span>",
+				result->fromResult, result->toResult, result->totalResult)) == -1) {
+		reportHTML = NULL;
+		goto on_mem_error;
+	}
+
+	if ((prelink = preparePreLink(result->prelink)) == NULL) {
+		goto on_mem_error;
+	}
+
+	if (result->first > 0) {
+		asprintf_size = asprintf(&firstHTML, "<a href=\"%spage=%d\" class=\"paginator-first\">First</a>", prelink, result->first);
+	} else {
+		asprintf_size = asprintf(&firstHTML, "%s", "<span class=\"paginator-first\">First</span>");
+	}
+	if (asprintf_size == -1) {
+		firstHTML = NULL;
+		goto on_mem_error;
+	}
+
+	if (result->previous > 0) {
+		asprintf_size = asprintf(&previousHTML, "<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", prelink, result->previous);
+	} else {
+		asprintf_size = asprintf(&previousHTML, "%s", "<span class=\"paginator-previous\">Previous</span>");
+	}
+	if (asprintf_size == -1) {
+		previousHTML = NULL;
+		goto on_mem_error;
+	}
+
+	if (result->next > 0) {
+		asprintf_size = asprintf(&nextHTML, "<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", prelink, result->next);
+	} else {
+		asprintf_size = asprintf(&nextHTML, "%s", "<span class=\"paginator-next\">Next</span>");
+	}
+	if (asprintf_size == -1) {
+		nextHTML = NULL;
+		goto on_mem_error;
+	}
+
+	if (result->last > 0) {
+		asprintf_size = asprintf(&lastHTML, "<a href=\"%spage=%d\" class=\"paginator-last\">Last</a>", prelink, result->last);
+	} else {
+		asprintf_size = asprintf(&lastHTML, "%s", "<span class=\"paginator-last\">Last</span>");
+	}
+	if (asprintf_size == -1) {
+		lastHTML = NULL;
+		goto on_mem_error;
+	}
+
+	if ((asprintf(&tmp, "%s%s%s%s%s%s%s", startHTML, reportHTML, firstHTML, previousHTML, nextHTML, lastHTML, endHTML)) == -1) {
+		tmp = NULL;
+		goto on_mem_error;
+	}
+
+	res = PyString_FromString(tmp);
+
+	free(prelink);
+	PyMem_Free(result->prelink);
+	PyMem_Free(result);
+	free(firstHTML);
+	free(previousHTML);
+	free(nextHTML);
+	free(lastHTML);
+	free(reportHTML);
+	free(tmp);
+
+	return res;
+
+on_mem_error:
+	/* clean up */
+	if (tmp) {
+		free(tmp);
+	}
+	if (prelink) {
+		free(prelink);
+	}
+	if (result) {
+		PyMem_Free(result->prelink);
+		PyMem_Free(result);
+	}
+	if (firstHTML) {
+		free(firstHTML);
+	}
+	if (previousHTML) {
+		free(previousHTML);
+	}
+
+	if (nextHTML) {
+		free(nextHTML);
+	}
+
+	if (lastHTML) {
+		free(lastHTML);
+	}
+	if (reportHTML) {
+		free(reportHTML);
+	}
+	PyErr_SetString(PyExc_MemoryError, "pagination.Pagination_renderItem");
+	return NULL;
+}
+
+static PyObject *
+Pagination_render(PaginationObject *self, PyObject *args, PyObject *kwdict) {
+	char *pattern = "search";
+	static char *keywords[] = {"pattern", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kwdict, "|s", keywords, &pattern)) {
+		return NULL;
+	}
+
+	if (strcmp(pattern, "item") == 0) {
+		return Pagination_renderItem(self);
+	} else {
+		return Pagination_renderSearch(self);
+	}
 }
 
 /**
  * Method to bind to class
  */
-static PyMethodDef SearchPagination_methods[] = {
-	{ "render", (PyCFunction) SearchPagination_render, METH_NOARGS, "render pagination" },
+static PyMethodDef Pagination_methods[] = {
+	{ "render", (PyCFunction) Pagination_render, METH_KEYWORDS, "render pagination" },
 	{ NULL, NULL } /* sentinel */
 };
 
-static PyTypeObject SearchPaginationtype = {
-	PyVarObject_HEAD_INIT(NULL, 0) "_pagination.pagination", /*tp_name*/
+static PyTypeObject Paginationtype = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+	"_pagination.pagination", /*tp_name*/
 	sizeof(PaginationObject), /*tp_size*/
 	0, /*tp_itemsize*/
 	/* methods */
@@ -378,14 +521,13 @@ static PyTypeObject SearchPaginationtype = {
 	0, /*tp_weaklistoffset*/
 	0, /*tp_iter*/
 	0, /*tp_iternext*/
-	SearchPagination_methods, /* tp_methods */
+	Pagination_methods, /* tp_methods */
 	NULL, /* tp_members */
 	NULL, /* tp_getset */
 };
 
 static struct PyMethodDef Pagination_functions[] = {
-	{ "SearchPaginator", (PyCFunction) SearchPagination_new, METH_VARARGS | METH_KEYWORDS, "New SearchPagination" },
-	{ "ItemPaginator", (PyCFunction) SearchPagination_new, METH_VARARGS | METH_KEYWORDS, "New ItemPagination" },
+	{ "Paginator", (PyCFunction) Pagination_new, METH_VARARGS | METH_KEYWORDS, "New Pagination" },
 	{ NULL, NULL } /* Sentinel */
 };
 
@@ -393,7 +535,7 @@ static struct PyMethodDef Pagination_functions[] = {
 PyMODINIT_FUNC initpagination(void) {
 	PyObject *m;
 
-	if (PyType_Ready(&SearchPaginationtype) < 0) {
+	if (PyType_Ready(&Paginationtype) < 0) {
 		return;
 	}
 	/* class and functions to modules */
@@ -403,5 +545,5 @@ PyMODINIT_FUNC initpagination(void) {
 		return;
 	}
 
-	Py_INCREF(&SearchPaginationtype);
+	Py_INCREF(&Paginationtype);
 }
