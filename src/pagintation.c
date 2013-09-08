@@ -9,7 +9,7 @@
 typedef struct {
 	PyObject_HEAD
 	int totalResult;
-	const char *prelink;
+	char *prelink;
 	int rowsPerPage;
 	int pageLinks;
 	int current;
@@ -40,9 +40,10 @@ newPaginationObject(void) {
 }
 
 static void
-Pagination_dealloc(PyObject *ptr) {
+Pagination_dealloc(PaginationObject *self) {
 	//printf("Call Pagination_dealloc\n");
-	PyObject_Del(ptr);
+	PyMem_Free(self->prelink);
+	PyObject_Del(self);
 }
 
 static PaginationResult *
@@ -58,10 +59,12 @@ Pagination_calc(PaginationObject *self) {
 		return NULL;
 	}
 	/* initialize values */
-	if ((asprintf(&result->prelink, "%s", self->prelink)) == -1) {
+	if ((result->prelink = PyMem_Malloc(strlen(self->prelink))) == NULL) {
 		free(result);
 		return NULL;
 	}
+	strcpy(result->prelink, self->prelink);
+
 	result->first = 0;
 	result->fromResult = 0;
 	result->current = (self->current > 0)? self->current: 1;
@@ -165,7 +168,8 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 		return NULL;
 	}
 	new->totalResult = totalResult;
-	new->prelink = prelink;
+	new->prelink = PyMem_Malloc(strlen(prelink));
+	strcpy(new->prelink, prelink);
 	new->pageLinks = pageLinks;
 	new->rowsPerPage = rowsPerPage;
 	new->current = current;
@@ -498,7 +502,7 @@ static PyTypeObject Paginationtype = {
 	sizeof(PaginationObject), /*tp_size*/
 	0, /*tp_itemsize*/
 	/* methods */
-	Pagination_dealloc, /*tp_dealloc*/
+	(destructor) Pagination_dealloc, /*tp_dealloc*/
 	0, /*tp_print*/
 	0, /*tp_getattr*/
 	0, /*tp_setattr*/
