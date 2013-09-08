@@ -198,8 +198,8 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 static PyObject *
 Pagination_renderSearch(PaginationObject *self) {
 	PaginationResult * result = NULL;
-	char *startHTML = "<div class=\"paginator\">";
-	char *endHTML = "</div>";
+	const char *startHTML = "<div class=\"paginator\">";
+	const char *endHTML = "</div>";
 	PyObject *previousHTML = NULL;
 	PyObject *nextHTML = NULL;
 	char *rangeHTML = NULL;
@@ -225,7 +225,7 @@ Pagination_renderSearch(PaginationObject *self) {
 											PyString_AsString(result->prelink),
 											result->previous);
 	} else {
-		previousHTML = PyString_FromString("");
+		previousHTML = PyString_FromString(" ");
 	}
 
 	if (previousHTML == NULL) {
