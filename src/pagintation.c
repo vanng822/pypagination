@@ -445,11 +445,43 @@ Pagination_render(PaginationObject *self, PyObject *args, PyObject *kwdict) {
 	}
 }
 
+static PyObject *
+Pagination_getPaginationData(PaginationObject *self) {
+	PaginationResult *result;
+	PyObject *prelink;
+
+	result = Pagination_calc(self);
+
+	prelink = preparePreLink(result->prelink);
+
+	PyObject *res;
+	res = Py_BuildValue("{s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i}",
+			"prelink", PyString_AsString(prelink),
+			"totalResult", result->totalResult,
+			"fromResult", result->fromResult,
+			"toResult", result->toResult,
+			"current", result->current,
+			"endPage", result->endPage,
+			"first", result->first,
+			"last", result->last,
+			"next", result->next,
+			"pageCount", result->pageCount,
+			"previous", result->previous,
+			"startPage", result->startPage);
+
+	Py_DECREF(prelink);
+	PyMem_Free(result->prelink);
+	PyMem_Free(result);
+	return res;
+}
+
+
 /**
  * Method to bind to class
  */
 static PyMethodDef Pagination_methods[] = {
 	{ "render", (PyCFunction) Pagination_render, METH_KEYWORDS, "render pagination" },
+	{ "getPaginationData", (PyCFunction) Pagination_getPaginationData, METH_NOARGS, "render pagination" },
 	{ NULL, NULL } /* sentinel */
 };
 
