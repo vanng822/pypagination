@@ -225,7 +225,7 @@ Pagination_renderSearch(PaginationObject *self) {
 											PyString_AsString(result->prelink),
 											result->previous);
 	} else {
-		previousHTML = PyString_FromString(" ");
+		previousHTML = PyString_FromString("");
 	}
 
 	if (previousHTML == NULL) {
@@ -239,7 +239,7 @@ Pagination_renderSearch(PaginationObject *self) {
 									result->endPage,
 									"paginator-current",
 									" paginator-page-first",
-									result->endPage) * (result->endPage - result->startPage)) + 1);
+									result->endPage) * (result->endPage - result->startPage + 1)));
 		if (rangeHTML == NULL) {
 			goto on_mem_error;
 		}
