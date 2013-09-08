@@ -16,7 +16,7 @@ typedef struct {
 } PaginationObject;
 
 typedef struct {
-	char *prelink;
+	PyObject *prelink;
 	int current;
 	int previous;
 	int next;
@@ -46,6 +46,21 @@ Pagination_dealloc(PaginationObject *self) {
 	PyObject_Del(self);
 }
 
+static PyObject *
+preparePreLink(const char *prelink) {
+	int len;
+	len = strlen(prelink);
+	if (strstr(prelink, "?") != NULL) {
+		if (prelink[len-1] != '?' && prelink[len-1] != '&') {
+			return PyString_FromFormat("%s&", prelink);
+		} else {
+			return PyString_FromString(prelink);
+		}
+	} else {
+		return PyString_FromFormat("%s?", prelink);
+	}
+}
+
 static PaginationResult *
 Pagination_calc(PaginationObject *self) {
 	//printf("%d %d %d %d %s", self->totalResult, self->pageLinks, self->rowsPerPage, self->current, self->prelink);
@@ -59,12 +74,11 @@ Pagination_calc(PaginationObject *self) {
 		return NULL;
 	}
 	/* initialize values */
-	if ((result->prelink = PyMem_Malloc(strlen(self->prelink))) == NULL) {
-		free(result);
+	result->prelink = preparePreLink(self->prelink);
+	if (result->prelink == NULL) {
+		PyMem_Free(result);
 		return NULL;
 	}
-	strcpy(result->prelink, self->prelink);
-
 	result->first = 0;
 	result->fromResult = 0;
 	result->current = (self->current > 0)? self->current: 1;
@@ -182,21 +196,6 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 }
 
 static PyObject *
-preparePreLink(const char *prelink) {
-	int len;
-	len = strlen(prelink);
-	if (strstr(prelink, "?") != NULL) {
-		if (prelink[len-1] != '?' && prelink[len-1] != '&') {
-			return PyString_FromFormat("%s&", prelink);
-		} else {
-			return PyString_FromString(prelink);
-		}
-	} else {
-		return PyString_FromFormat("%s?", prelink);
-	}
-}
-
-static PyObject *
 Pagination_renderSearch(PaginationObject *self) {
 	PaginationResult * result = NULL;
 	char *startHTML = "<div class=\"paginator\">";
@@ -204,7 +203,6 @@ Pagination_renderSearch(PaginationObject *self) {
 	PyObject *previousHTML = NULL;
 	PyObject *nextHTML = NULL;
 	char *rangeHTML = NULL;
-	PyObject *prelink = NULL;
 	PyObject *res = NULL;
 
 	result = Pagination_calc(self);
@@ -216,18 +214,14 @@ Pagination_renderSearch(PaginationObject *self) {
 		if ((res = PyString_FromFormat("%s%s",startHTML, endHTML)) == NULL) {
 			goto on_mem_error;
 		}
-		PyMem_Free(result->prelink);
+		Py_DECREF(result->prelink);
 		PyMem_Free(result);
 		return res;
 	}
 
-	if ((prelink = preparePreLink(result->prelink)) == NULL) {
-		goto on_mem_error;
-	}
-
 	if (result->previous > 0) {
 		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>",
-											PyString_AsString(prelink),
+											PyString_AsString(result->prelink),
 											result->previous);
 	} else {
 		previousHTML = PyString_FromString("");
@@ -240,7 +234,7 @@ Pagination_renderSearch(PaginationObject *self) {
 	if(result->endPage > result->startPage) {
 		PyObject *className, *extraClassName, *pageLink;
 		rangeHTML = PyMem_Malloc((snprintf(NULL, 0, "<a href=\"%spage=%d\" class=\"%s%s\">%d</a>",
-									PyString_AsString(prelink),
+									PyString_AsString(result->prelink),
 									result->endPage,
 									"paginator-current",
 									" paginator-page-first",
@@ -269,7 +263,7 @@ Pagination_renderSearch(PaginationObject *self) {
 				goto on_mem_error;
 			}
 			pageLink = PyString_FromFormat("<a href=\"%spage=%d\" class=\"%s%s\">%d</a>",
-									PyString_AsString(prelink),
+									PyString_AsString(result->prelink),
 									i,
 									PyString_AsString(className),
 									PyString_AsString(extraClassName),
@@ -292,7 +286,7 @@ Pagination_renderSearch(PaginationObject *self) {
 	}
 
 	if (result->next > 0) {
-		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(prelink), result->next);
+		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(result->prelink), result->next);
 	} else {
 		nextHTML = PyString_FromString("");
 	}
@@ -303,8 +297,7 @@ Pagination_renderSearch(PaginationObject *self) {
 
 	res = PyString_FromFormat("%s%s%s%s%s", startHTML, PyString_AsString(previousHTML), rangeHTML, PyString_AsString(nextHTML), endHTML);
 
-	Py_DECREF(prelink);
-	PyMem_Free(result->prelink);
+	Py_DECREF(result->prelink);
 	PyMem_Free(result);
 	Py_DECREF(previousHTML);
 	Py_DECREF(nextHTML);
@@ -314,9 +307,8 @@ Pagination_renderSearch(PaginationObject *self) {
 
 on_mem_error:
 	/* clean up */
-	Py_XDECREF(prelink);
 	if (result) {
-		PyMem_Free(result->prelink);
+		Py_DECREF(result->prelink);
 		PyMem_Free(result);
 	}
 	Py_XDECREF(previousHTML);
@@ -337,7 +329,6 @@ Pagination_renderItem(PaginationObject *self) {
 	PyObject *previousHTML = NULL;
 	PyObject *reportHTML = NULL;
 	PyObject *nextHTML = NULL;
-	PyObject *prelink = NULL;
 	PyObject *firstHTML = NULL;
 	PyObject *lastHTML = NULL;
 	PyObject *res = NULL;
@@ -353,12 +344,8 @@ Pagination_renderItem(PaginationObject *self) {
 		goto on_mem_error;
 	}
 
-	if ((prelink = preparePreLink(result->prelink)) == NULL) {
-		goto on_mem_error;
-	}
-
 	if (result->first > 0) {
-		firstHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-first\">First</a>", PyString_AsString(prelink), result->first);
+		firstHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-first\">First</a>", PyString_AsString(result->prelink), result->first);
 	} else {
 		firstHTML = PyString_FromFormat("%s", "<span class=\"paginator-first\">First</span>");
 	}
@@ -367,7 +354,7 @@ Pagination_renderItem(PaginationObject *self) {
 	}
 
 	if (result->previous > 0) {
-		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", PyString_AsString(prelink), result->previous);
+		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", PyString_AsString(result->prelink), result->previous);
 	} else {
 		previousHTML = PyString_FromFormat("%s", "<span class=\"paginator-previous\">Previous</span>");
 	}
@@ -376,7 +363,7 @@ Pagination_renderItem(PaginationObject *self) {
 	}
 
 	if (result->next > 0) {
-		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(prelink), result->next);
+		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(result->prelink), result->next);
 	} else {
 		nextHTML = PyString_FromFormat("%s", "<span class=\"paginator-next\">Next</span>");
 	}
@@ -385,7 +372,7 @@ Pagination_renderItem(PaginationObject *self) {
 	}
 
 	if (result->last > 0) {
-		lastHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-last\">Last</a>", PyString_AsString(prelink), result->last);
+		lastHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-last\">Last</a>", PyString_AsString(result->prelink), result->last);
 	} else {
 		lastHTML = PyString_FromFormat("%s", "<span class=\"paginator-last\">Last</span>");
 	}
@@ -402,8 +389,7 @@ Pagination_renderItem(PaginationObject *self) {
 			PyString_AsString(lastHTML),
 			endHTML);
 
-	Py_DECREF(prelink);
-	PyMem_Free(result->prelink);
+	Py_DECREF(result->prelink);
 	PyMem_Free(result);
 	Py_DECREF(firstHTML);
 	Py_DECREF(previousHTML);
@@ -415,9 +401,8 @@ Pagination_renderItem(PaginationObject *self) {
 
 on_mem_error:
 	/* clean up */
-	Py_XDECREF(prelink);
 	if (result) {
-		PyMem_Free(result->prelink);
+		Py_DECREF(result->prelink);
 		PyMem_Free(result);
 	}
 	Py_XDECREF(firstHTML);
@@ -448,15 +433,16 @@ Pagination_render(PaginationObject *self, PyObject *args, PyObject *kwdict) {
 static PyObject *
 Pagination_getPaginationData(PaginationObject *self) {
 	PaginationResult *result;
-	PyObject *prelink;
+	PyObject *res;
 
 	result = Pagination_calc(self);
+	if (result == NULL) {
+		Py_INCREF(Py_None);
+		return Py_None;
+	}
 
-	prelink = preparePreLink(result->prelink);
-
-	PyObject *res;
 	res = Py_BuildValue("{s:s,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i,s:i}",
-			"prelink", PyString_AsString(prelink),
+			"prelink", PyString_AsString(result->prelink),
 			"totalResult", result->totalResult,
 			"fromResult", result->fromResult,
 			"toResult", result->toResult,
@@ -469,8 +455,7 @@ Pagination_getPaginationData(PaginationObject *self) {
 			"previous", result->previous,
 			"startPage", result->startPage);
 
-	Py_DECREF(prelink);
-	PyMem_Free(result->prelink);
+	Py_DECREF(result->prelink);
 	PyMem_Free(result);
 	return res;
 }
