@@ -3,6 +3,7 @@ pypagination
 
 Pagination in CPython
 
+[![build status](https://secure.travis-ci.org/vanng822/pypagination.png)](http://travis-ci.org/vanng822/pypagination)
 
 # Example
 	import pagination
