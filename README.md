@@ -17,3 +17,5 @@ Pagination in CPython
     print p.render()
     # OR
     print p.render(pattern="item")
+    # OR for pagination data
+    print p.getPaginationData()
