@@ -204,6 +204,7 @@ Pagination_renderSearch(PaginationObject *self) {
 	PyObject *nextHTML = NULL;
 	char *rangeHTML = NULL;
 	PyObject *res = NULL;
+	int i;
 
 	result = Pagination_calc(self);
 	if (result == NULL) {
@@ -242,7 +243,7 @@ Pagination_renderSearch(PaginationObject *self) {
 		if (rangeHTML == NULL) {
 			goto on_mem_error;
 		}
-		for(int i = result->startPage; i <= result->endPage; i++) {
+		for(i = result->startPage; i <= result->endPage; i++) {
 			if(i == result->current) {
 				className = PyString_FromString("paginator-current");
 			} else {
