@@ -25,7 +25,16 @@ class PaginationTest(unittest.TestCase):
                                 )
         
         self.assertEqual(p.render(), '<div class="paginator"><a href="/test?go=3&page=4" class="paginator-previous">Previous</a><a href="/test?go=3&page=3" class="paginator-page paginator-page-first">3</a><a href="/test?go=3&page=4" class="paginator-page">4</a><a href="/test?go=3&page=5" class="paginator-current">5</a><a href="/test?go=3&page=6" class="paginator-page">6</a><a href="/test?go=3&page=7" class="paginator-page paginator-page-last">7</a><a href="/test?go=3&page=6" class="paginator-next">Next</a></div>')
-     
+    
+        p = pagination.Paginator(100,
+                                prelink= '/',
+                                current = 5,
+                                pageLinks = 5,
+                                )
+
+        self.assertEqual(p.render(), '<div class="paginator"><a href="/?page=4" class="paginator-previous">Previous</a><a href="/?page=3" class="paginator-page paginator-page-first">3</a><a href="/?page=4" class="paginator-page">4</a><a href="/?page=5" class="paginator-current">5</a><a href="/?page=6" class="paginator-page">6</a><a href="/?page=7" class="paginator-page paginator-page-last">7</a><a href="/?page=6" class="paginator-next">Next</a></div>');
+
+    
     def test_get_pagination_data(self):
         p = pagination.Paginator(1000,
                                 prelink= '/test?go=3',
