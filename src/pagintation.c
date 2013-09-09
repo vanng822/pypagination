@@ -507,7 +507,7 @@ static PyTypeObject Paginationtype = {
 };
 
 static struct PyMethodDef Pagination_functions[] = {
-	{ "Paginator", (PyCFunction) Pagination_new, METH_VARARGS | METH_KEYWORDS, "New Pagination" },
+	{ "Paginator", (PyCFunction) Pagination_new, METH_VARARGS | METH_KEYWORDS, PyDoc_STR("New Pagination") },
 	{ NULL, NULL } /* Sentinel */
 };
 
