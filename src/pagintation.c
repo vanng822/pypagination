@@ -13,6 +13,7 @@ typedef struct {
 	int rowsPerPage;
 	int pageLinks;
 	int current;
+	PyObject *translations;
 } PaginationObject;
 
 typedef struct {
@@ -43,6 +44,7 @@ static void
 Pagination_dealloc(PaginationObject *self) {
 	//printf("Call Pagination_dealloc\n");
 	PyMem_Free(self->prelink);
+	Py_XDECREF(self->translations);
 	PyObject_Del(self);
 }
 
@@ -167,12 +169,13 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 	int pageLinks = 5;
 	int rowsPerPage = 10;
 	int current = 1;
-	static char *keywords[] = { "totalResult", "prelink", "pageLinks", "rowsPerPage", "current",  NULL };
+	PyObject *translations = NULL;
 
+	static char *keywords[] = { "totalResult", "prelink", "pageLinks", "rowsPerPage", "current", "translations", NULL };
 	//PyObject_Print(args, stdout, 0);
 	//PyObject_Print(kwdict, stdout, 0);
 
-	if (!PyArg_ParseTupleAndKeywords(args, kwdict, "i|siii", keywords, &totalResult, &prelink, &pageLinks, &rowsPerPage, &current)) {
+	if (!PyArg_ParseTupleAndKeywords(args, kwdict, "i|siiiO", keywords, &totalResult, &prelink, &pageLinks, &rowsPerPage, &current, &translations)) {
 		return NULL;
 	}
 
@@ -186,6 +189,28 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 		return NULL;
 	}
 	strcpy(new->prelink, prelink);
+
+	if ((new->translations = (PyObject *) PyDict_New()) == NULL) {
+		PyMem_Free(new->prelink);
+		PyObject_Del(new);
+		return NULL;
+	}
+	/* Adding English translations */
+	PyDict_SetItemString(new->translations, "NEXT", PyString_FromString("Next"));
+	PyDict_SetItemString(new->translations, "PREVIOUS", PyString_FromString("Previous"));
+	PyDict_SetItemString(new->translations, "FIRST", PyString_FromString("First"));
+	PyDict_SetItemString(new->translations, "LAST", PyString_FromString("Last"));
+	PyDict_SetItemString(new->translations, "CURRENT_PAGE_REPORT", PyString_FromString("Results %d - %d of %d"));
+
+	/* Override with specified translations; overhead and may be dangerous but :-D */
+	if (translations && PyDict_Check(translations)) {
+		PyDict_Merge(new->translations, translations, 1);
+		//PyObject_Print(new->translations, stdout, 0);
+	}
+
+	Py_XDECREF(translations);
+
+
 	new->pageLinks = pageLinks;
 	new->rowsPerPage = rowsPerPage;
 	new->current = current;
@@ -219,9 +244,10 @@ Pagination_renderSearch(PaginationObject *self) {
 	}
 
 	if (result->previous > 0) {
-		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>",
+		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">%s</a>",
 											PyString_AsString(result->prelink),
-											result->previous);
+											result->previous,
+											PyString_AsString(PyDict_GetItemString(self->translations, "PREVIOUS")));
 	} else {
 		previousHTML = PyString_FromString("");
 	}
@@ -288,7 +314,10 @@ Pagination_renderSearch(PaginationObject *self) {
 	}
 
 	if (result->next > 0) {
-		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(result->prelink), result->next);
+		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">%s</a>",
+				PyString_AsString(result->prelink),
+				result->next,
+				PyString_AsString(PyDict_GetItemString(self->translations, "NEXT")));
 	} else {
 		nextHTML = PyString_FromString("");
 	}
@@ -341,42 +370,66 @@ Pagination_renderItem(PaginationObject *self) {
 		goto on_mem_error;
 	}
 
-	if ((reportHTML = PyString_FromFormat("<span class=\"paginator-current-report\">Results %d - %d of %d</span>",
-				result->fromResult, result->toResult, result->totalResult)) == NULL) {
+	PyObject *report_tmp = PyString_FromFormat("<span class=\"paginator-current-report\">%s</span>",
+			PyString_AsString(PyDict_GetItemString(self->translations, "CURRENT_PAGE_REPORT")));
+
+	if (report_tmp == NULL) {
 		goto on_mem_error;
 	}
 
+	if ((reportHTML = PyString_FromFormat(PyString_AsString(report_tmp),
+				result->fromResult, result->toResult, result->totalResult)) == NULL) {
+		goto on_mem_error;
+	}
+	Py_DECREF(report_tmp);
+
 	if (result->first > 0) {
-		firstHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-first\">First</a>", PyString_AsString(result->prelink), result->first);
+		firstHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-first\">%s</a>",
+				PyString_AsString(result->prelink),
+				result->first,
+				PyString_AsString(PyDict_GetItemString(self->translations, "FIRST")));
 	} else {
-		firstHTML = PyString_FromFormat("%s", "<span class=\"paginator-first\">First</span>");
+		firstHTML = PyString_FromFormat("<span class=\"paginator-first\">%s</span>",
+				PyString_AsString(PyDict_GetItemString(self->translations, "FIRST")));
 	}
 	if (firstHTML == NULL) {
 		goto on_mem_error;
 	}
 
 	if (result->previous > 0) {
-		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">Previous</a>", PyString_AsString(result->prelink), result->previous);
+		previousHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-previous\">%s</a>",
+				PyString_AsString(result->prelink),
+				result->previous,
+				PyString_AsString(PyDict_GetItemString(self->translations, "PREVIOUS")));
 	} else {
-		previousHTML = PyString_FromFormat("%s", "<span class=\"paginator-previous\">Previous</span>");
+		previousHTML = PyString_FromFormat("<span class=\"paginator-previous\">%s</span>",
+				PyString_AsString(PyDict_GetItemString(self->translations, "PREVIOUS")));
 	}
 	if (previousHTML == NULL) {
 		goto on_mem_error;
 	}
 
 	if (result->next > 0) {
-		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">Next</a>", PyString_AsString(result->prelink), result->next);
+		nextHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-next\">%s</a>",
+				PyString_AsString(result->prelink),
+				result->next,
+				PyString_AsString(PyDict_GetItemString(self->translations, "NEXT")));
 	} else {
-		nextHTML = PyString_FromFormat("%s", "<span class=\"paginator-next\">Next</span>");
+		nextHTML = PyString_FromFormat("<span class=\"paginator-next\">%s</span>",
+				PyString_AsString(PyDict_GetItemString(self->translations, "NEXT")));
 	}
 	if (nextHTML == NULL) {
 		goto on_mem_error;
 	}
 
 	if (result->last > 0) {
-		lastHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-last\">Last</a>", PyString_AsString(result->prelink), result->last);
+		lastHTML = PyString_FromFormat("<a href=\"%spage=%d\" class=\"paginator-last\">%s</a>",
+				PyString_AsString(result->prelink),
+				result->last,
+				PyString_AsString(PyDict_GetItemString(self->translations, "LAST")));
 	} else {
-		lastHTML = PyString_FromFormat("%s", "<span class=\"paginator-last\">Last</span>");
+		lastHTML = PyString_FromFormat("<span class=\"paginator-last\">%s</span>",
+				PyString_AsString(PyDict_GetItemString(self->translations, "LAST")));
 	}
 	if (lastHTML == NULL) {
 		goto on_mem_error;

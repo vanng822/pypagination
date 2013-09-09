@@ -1,3 +1,5 @@
+# -*- coding: utf8 -*-
+
 import unittest
 import pagination
 import time
@@ -70,7 +72,7 @@ class PaginationTest(unittest.TestCase):
                                 prelink= '/',
                                 pageLinks = 5,
                                 current = 10,
-                                )
+                                translations={'NEXT': "Next"})
         
         self.assertEqual(p.render(pattern='item'), '<div class="paginator"><span class="paginator-current-report">Results 91 - 98 of 98</span><a href="/?page=1" class="paginator-first">First</a><a href="/?page=9" class="paginator-previous">Previous</a><span class="paginator-next">Next</span><span class="paginator-last">Last</span></div>')
      
