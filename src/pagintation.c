@@ -162,9 +162,9 @@ static PyObject *
 Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 	PaginationObject *new;
 
-	char *prelink = "?";
-	int totalResult = 1000;
-	int pageLinks = 14;
+	char *prelink = "";
+	int totalResult = 0;
+	int pageLinks = 5;
 	int rowsPerPage = 10;
 	int current = 1;
 	static char *keywords[] = { "totalResult", "prelink", "pageLinks", "rowsPerPage", "current",  NULL };
