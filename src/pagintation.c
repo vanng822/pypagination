@@ -65,7 +65,7 @@ static PaginationResult *
 Pagination_calc(PaginationObject *self) {
 	//printf("%d %d %d %d %s", self->totalResult, self->pageLinks, self->rowsPerPage, self->current, self->prelink);
 	PaginationResult *result;
-	int startPage, endPage, pageCount, half, oldPageLinks;
+	int startPage, endPage, half, oldPageLinks;
 
 	oldPageLinks = (self->pageLinks % 2 == 0) ? 1 : 0;
 
@@ -97,11 +97,9 @@ Pagination_calc(PaginationObject *self) {
 		return result;
 	}
 	/* force a floating point devision */
-	pageCount = ceil((float) self->totalResult / self->rowsPerPage);
+	result->pageCount = ceil((float) self->totalResult / self->rowsPerPage);
 
-	result->pageCount = pageCount;
-
-	if (pageCount < 2) {
+	if (result->pageCount < 2) {
 		result->fromResult = 1;
 		result->toResult = self->totalResult;
 		return result;
@@ -109,8 +107,8 @@ Pagination_calc(PaginationObject *self) {
 
 	/* adjust current in case it gets out of range for some reason */
 
-	if (result->current > pageCount) {
-		result->current = pageCount;
+	if (result->current > result->pageCount) {
+		result->current = result->pageCount;
 	}
 
 	half = floor((float) self->pageLinks / 2);
@@ -122,13 +120,13 @@ Pagination_calc(PaginationObject *self) {
 	if (startPage < 1) {
 		startPage = 1;
 		endPage = startPage + self->pageLinks;
-		if (endPage > pageCount) {
-			endPage = pageCount;
+		if (endPage > result->pageCount) {
+			endPage = result->pageCount;
 		}
 	}
 
-	if (endPage > pageCount) {
-		endPage = pageCount;
+	if (endPage > result->pageCount) {
+		endPage = result->pageCount;
 		startPage = endPage - self->pageLinks + 1;
 		if (startPage < 1) {
 			startPage = 1;
@@ -143,14 +141,14 @@ Pagination_calc(PaginationObject *self) {
 		result->previous = result->current - 1;
 	}
 
-	if (result->current < pageCount) {
-		result->last = pageCount;
+	if (result->current < result->pageCount) {
+		result->last = result->pageCount;
 		result->next = result->current + 1;
 	}
 
 	result->fromResult = (result->current - 1) * self->rowsPerPage + 1;
 
-	if (result->current == pageCount) {
+	if (result->current == result->pageCount) {
 		result->toResult = self->totalResult;
 	} else {
 		result->toResult = result->fromResult + self->rowsPerPage - 1;
