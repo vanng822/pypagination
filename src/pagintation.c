@@ -467,8 +467,8 @@ Pagination_getPaginationData(PaginationObject *self) {
  * Method to bind to class
  */
 static PyMethodDef Pagination_methods[] = {
-	{ "render", (PyCFunction) Pagination_render, METH_KEYWORDS, "render pagination" },
-	{ "getPaginationData", (PyCFunction) Pagination_getPaginationData, METH_NOARGS, "render pagination" },
+	{ "render", (PyCFunction) Pagination_render, METH_KEYWORDS, PyDoc_STR("Render pagination") },
+	{ "getPaginationData", (PyCFunction) Pagination_getPaginationData, METH_NOARGS, PyDoc_STR("Get pagination data as a dictionary") },
 	{ NULL, NULL } /* sentinel */
 };
 
