@@ -201,11 +201,16 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 		return NULL;
 	}
 	/* Adding English translations */
-	PyDict_SetItemString(new->translations, LC_NEXT, PyString_FromString("Next"));
-	PyDict_SetItemString(new->translations, LC_PREVIOUS, PyString_FromString("Previous"));
-	PyDict_SetItemString(new->translations, LC_FIRST, PyString_FromString("First"));
-	PyDict_SetItemString(new->translations, LC_LAST, PyString_FromString("Last"));
-	PyDict_SetItemString(new->translations, LC_CURRENT_PAGE_REPORT, PyString_FromString("Results %d - %d of %d"));
+	/* Is this check enough? */
+	if ((PyDict_SetItemString(new->translations, LC_NEXT, PyString_FromString("Next"))) == -1
+		|| (PyDict_SetItemString(new->translations, LC_PREVIOUS, PyString_FromString("Previous"))) == -1
+		|| (PyDict_SetItemString(new->translations, LC_FIRST, PyString_FromString("First"))) == -1
+		|| (PyDict_SetItemString(new->translations, LC_LAST, PyString_FromString("Last"))) == -1
+		|| (PyDict_SetItemString(new->translations, LC_CURRENT_PAGE_REPORT, PyString_FromString("Results %d - %d of %d"))) == -1) {
+			PyMem_Free(new->prelink);
+			PyObject_Del(new);
+			return NULL;
+		}
 
 	/* Override with specified translations; overhead and may be dangerous but :-D */
 	if (translations && PyDict_Check(translations)) {
