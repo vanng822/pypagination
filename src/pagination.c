@@ -202,11 +202,11 @@ Pagination_new(PyObject *self, PyObject *args, PyObject *kwdict) {
 	}
 	/* Adding English translations */
 	/* Is this check enough? */
-	if ((PyDict_SetItemString(new->translations, LC_NEXT, PyString_FromString("Next"))) == -1
-		|| (PyDict_SetItemString(new->translations, LC_PREVIOUS, PyString_FromString("Previous"))) == -1
-		|| (PyDict_SetItemString(new->translations, LC_FIRST, PyString_FromString("First"))) == -1
-		|| (PyDict_SetItemString(new->translations, LC_LAST, PyString_FromString("Last"))) == -1
-		|| (PyDict_SetItemString(new->translations, LC_CURRENT_PAGE_REPORT, PyString_FromString("Results %d - %d of %d"))) == -1) {
+	if ((PyDict_SetItemString(new->translations, LC_NEXT, PyString_FromString("Next")) == -1)
+		|| (PyDict_SetItemString(new->translations, LC_PREVIOUS, PyString_FromString("Previous")) == -1)
+		|| (PyDict_SetItemString(new->translations, LC_FIRST, PyString_FromString("First")) == -1)
+		|| (PyDict_SetItemString(new->translations, LC_LAST, PyString_FromString("Last")) == -1)
+		|| (PyDict_SetItemString(new->translations, LC_CURRENT_PAGE_REPORT, PyString_FromString("Results %d - %d of %d")) == -1)) {
 			PyMem_Free(new->prelink);
 			PyObject_Del(new);
 			return NULL;
